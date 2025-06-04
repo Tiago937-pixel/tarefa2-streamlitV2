@@ -1,10 +1,7 @@
 streamlit==1.28.0
-pandas==2.2.2       # Atualizado para ter wheels Python 3.13
-numpy>=1.24.1       # Mantém, permite NumPy 2.x
-matplotlib==3.9.0   # Atualizado para ter wheels Python 3.13
-seaborn==0.12.2
+pandas==2.2.2
+numpy>=1.24.1
 plotly==5.17.0
-scipy==1.13.0       # Deve compilar com gfortran do packages.txt
-statsmodels==0.14.2 # Compatível com NumPy 2.x
-scikit-learn==1.5.0 # Atualizado para ter wheels Python 3.13
-setuptools
+scipy==1.13.0
+statsmodels==0.14.2
+scikit-learn==1.5.0

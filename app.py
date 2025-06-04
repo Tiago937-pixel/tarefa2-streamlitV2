@@ -5,14 +5,12 @@ DASHBOARD INTERATIVO - ANÁLISE IMOBILIÁRIA AMES HOUSING
 Tarefa 2: Precificação Imobiliária com ANOVA e Regressão Linear
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
 
-# Plotly para gráficos
 import plotly.express as px
-
-# Estatística
 from scipy import stats
 import statsmodels.api as sm
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -31,22 +29,42 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# 2. FUNÇÃO PARA CARREGAR O DATAFRAME DO CSV NA RAIZ (cache)
+# 2. DEBUG: Liste todo conteúdo da raiz para verificar se o CSV está lá
+# ------------------------------------------------------------
+st.write("🚀 Conteúdo da raiz do repositório:")
+root_files = os.listdir('.')
+st.write(root_files)
+
+
+# ------------------------------------------------------------
+# 3. FUNÇÃO PARA CARREGAR O DATAFRAME DO CSV NA RAIZ (cache + try/except)
 # ------------------------------------------------------------
 @st.cache_data
 def load_data():
-    # Lê o CSV AmesHousing.csv que está na raiz do repositório
-    df = pd.read_csv('AmesHousing.csv')
+    csv_name = 'AmesHousing.csv'
+    if csv_name not in os.listdir('.'):
+        # Se não encontrar o arquivo, dispara exceção para vermos no log
+        raise FileNotFoundError(
+            f"Arquivo '{csv_name}' não encontrado na raiz. "
+            f"Os arquivos em '.' são: {os.listdir('.')}"
+        )
+    # Se estiver tudo certo, lê o CSV
+    df = pd.read_csv(csv_name)
     return df
 
 # ------------------------------------------------------------
-# 3. CARREGA OS DADOS E EXIBE UMA MENSAGEM DE DEBUG
+# 4. CARREGA OS DADOS E EXIBE UMA MENSAGEM DE DEBUG
 # ------------------------------------------------------------
-df = load_data()
-st.write("📊 Dados carregados com sucesso! Shape:", df.shape)
+try:
+    df = load_data()
+    st.write("📊 Dados carregados com sucesso! Shape:", df.shape)
+except Exception as e:
+    st.error(f"❌ Falha ao carregar dados: {e}")
+    st.stop()  # para garantir que o restante do código não rode se deu erro
+
 
 # ------------------------------------------------------------
-# 4. SIDEBAR DE CONFIGURAÇÃO
+# 5. SIDEBAR DE CONFIGURAÇÃO
 # ------------------------------------------------------------
 st.sidebar.title("🛠️ Configurações da Análise")
 st.sidebar.markdown("---")
@@ -57,7 +75,7 @@ analysis_type = st.sidebar.selectbox(
 )
 
 # ------------------------------------------------------------
-# 5. METRICS INICIAIS (sempre aparecem)
+# 6. METRICS INICIAIS (sempre aparecem)
 # ------------------------------------------------------------
 st.subheader("📋 Informações Gerais do Dataset")
 col1, col2, col3, col4 = st.columns(4)
@@ -74,7 +92,7 @@ with col4:
 st.markdown("---")
 
 # ------------------------------------------------------------
-# 6. BLOCOS DE ANÁLISE POR TIPO ESCOLHIDO
+# 7. BLOCOS DE ANÁLISE POR TIPO ESCOLHIDO
 # ------------------------------------------------------------
 if analysis_type == "Exploração de Dados":
     st.header("🔍 Exploração de Dados")
@@ -107,18 +125,15 @@ elif analysis_type == "ANOVA":
     st.header("🧮 Análise ANOVA")
     st.write("🔄 Preparando ANOVA para variáveis categóricas...")
 
-    # Exemplo: variáveis categóricas presentes no AmesHousing.csv
     categorical_vars = ['Neighborhood', 'HouseStyle', 'SaleType']
 
     for var in categorical_vars:
         st.subheader(f"📊 ANOVA: {var}")
 
-        # Boxplot com Plotly
         fig = px.box(df, x=var, y='SalePrice', title=f'Preço por {var}')
         fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
 
-        # ANOVA tradicional
         try:
             groups = [group['SalePrice'].values for name, group in df.groupby(var)]
             f_stat, p_value = stats.f_oneway(*groups)
@@ -141,7 +156,6 @@ elif analysis_type == "Regressão Linear":
     st.header("📈 Análise de Regressão Linear")
     st.write("🔄 Preparando dados para regressão...")
 
-    # Defina as variáveis contínuas e categóricas de interesse
     continuous_vars = ['GrLivArea', 'OverallQual', 'YearBuilt', 'TotalBsmtSF']
     categorical_vars = ['Neighborhood', 'HouseStyle']
 
@@ -161,7 +175,6 @@ elif analysis_type == "Regressão Linear":
         X = df_final[all_vars].astype(float)
         y = df_final['SalePrice'].astype(float)
 
-        # Transformação log-log para a regressão
         y_log = np.log(y.clip(lower=1))
         X_log = X.copy()
         for var in continuous_vars:
@@ -206,7 +219,6 @@ elif analysis_type == "Regressão Linear":
             coef_df = pd.DataFrame(coef_data)
             st.dataframe(coef_df, use_container_width=True)
 
-        # Métricas de performance (em escala original)
         y_pred = model.predict()
         y_pred_original = np.exp(y_pred)
         y_actual_original = np.exp(y_log)
@@ -229,7 +241,7 @@ elif analysis_type == "Dashboard Completo":
     st.success("✅ Dashboard completo implementado!")
 
 # ------------------------------------------------------------
-# 7. RECOMENDAÇÕES PRÁTICAS (sempre exibidas)
+# 8. RECOMENDAÇÕES PRÁTICAS (sempre exibidas)
 # ------------------------------------------------------------
 st.markdown("---")
 st.subheader("💡 Recomendações Práticas")
@@ -244,7 +256,7 @@ st.write("""
 """)
 
 # ------------------------------------------------------------
-# 8. FOOTER
+# 9. FOOTER
 # ------------------------------------------------------------
 st.markdown("---")
 st.markdown("""

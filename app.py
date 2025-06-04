@@ -3,7 +3,6 @@
 """
 DASHBOARD INTERATIVO - ANÁLISE IMOBILIÁRIA AMES HOUSING
 Tarefa 2: Precificação Imobiliária com ANOVA e Regressão Linear
-Professor: João Gabriel de Moraes Souza
 """
 
 import streamlit as st
@@ -15,13 +14,7 @@ import plotly.express as px
 
 # Estatística
 from scipy import stats
-from scipy.stats import shapiro, levene, kruskal
 import statsmodels.api as sm
-from statsmodels.formula.api import ols
-from statsmodels.stats.diagnostic import het_breuschpagan
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-# Métricas
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 import warnings
@@ -37,87 +30,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Cabeçalho customizado (CSS mínimo)
-st.markdown("""
-<style>
-.main-header {
-    font-size: 2.5rem;
-    color: #2E86C1;
-    text-align: center;
-    margin-bottom: 1.5rem;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # ------------------------------------------------------------
-# 2. FUNÇÃO PARA GERAR O DATAFRAME SIMULADO (com cache)
+# 2. FUNÇÃO PARA CARREGAR O DATAFRAME DO CSV NA RAIZ (cache)
 # ------------------------------------------------------------
 @st.cache_data
 def load_data():
-    """
-    Gera um DataFrame simulado semelhante ao Ames Housing, 
-    usando exatamente a mesma lógica que você forneceu.
-    """
-    np.random.seed(42)
-    n_samples = 1460
-
-    data = {
-        'SalePrice': np.random.lognormal(12, 0.4, n_samples).astype(float),
-        'GrLivArea': np.random.normal(1500, 500, n_samples).astype(float),
-        'OverallQual': np.random.choice(
-            range(1, 11), n_samples,
-            p=[0.02,0.03,0.05,0.08,0.15,0.20,0.25,0.15,0.05,0.02]
-        ).astype(float),
-        'YearBuilt': np.random.randint(1880, 2011, n_samples).astype(float),
-        'GarageCars': np.random.choice(
-            [0,1,2,3,4], n_samples,
-            p=[0.05,0.15,0.6,0.18,0.02]
-        ).astype(float),
-        'TotalBsmtSF': np.random.normal(1000, 400, n_samples).astype(float),
-        'Neighborhood': np.random.choice(
-            ['Downtown','Suburb_A','Suburb_B','Rural','Industrial','Historic'],
-            n_samples,
-            p=[0.2,0.25,0.2,0.15,0.1,0.1]
-        ),
-        'SaleType': np.random.choice(
-            ['WD','New','COD','ConLD'], 
-            n_samples, 
-            p=[0.7,0.15,0.1,0.05]
-        ),
-        'HouseStyle': np.random.choice(
-            ['1Story','2Story','SLvl','1.5Fin','Split'], 
-            n_samples, 
-            p=[0.35,0.3,0.15,0.1,0.1]
-        ),
-        'Foundation': np.random.choice(
-            ['CBlock','PConc','BrkTil','Slab'], 
-            n_samples, 
-            p=[0.4,0.35,0.15,0.1]
-        )
-    }
-
-    df = pd.DataFrame(data)
-
-    # Ajustar preços baseado em OverallQual, GrLivArea e YearBuilt
-    price_multiplier = (
-        1
-        + 0.3 * (df['OverallQual'] / 10)
-        + 0.2 * (df['GrLivArea'] / 2000)
-        + 0.1 * ((df['YearBuilt'] - 1880) / 130)
-    )
-
-    df['SalePrice'] = (df['SalePrice'] * price_multiplier).astype(float)
-    df['GrLivArea'] = df['GrLivArea'].clip(500, 4000).astype(float)
-    df['TotalBsmtSF'] = df['TotalBsmtSF'].clip(0, 3000).astype(float)
-    df['SalePrice'] = df['SalePrice'].clip(50000, 500000).astype(float)
-
+    # Lê o CSV AmesHousing.csv que está na raiz do repositório
+    df = pd.read_csv('AmesHousing.csv')
     return df
 
 # ------------------------------------------------------------
-# 3. CARREGA OS DADOS E EXIBE UMA MENSAGEM DE DEBUG INICIAL
+# 3. CARREGA OS DADOS E EXIBE UMA MENSAGEM DE DEBUG
 # ------------------------------------------------------------
 df = load_data()
-st.write("📊 Dados carregados com sucesso!")  # Linha para identificar que o cache já rodou
+st.write("📊 Dados carregados com sucesso! Shape:", df.shape)
 
 # ------------------------------------------------------------
 # 4. SIDEBAR DE CONFIGURAÇÃO
@@ -150,40 +76,23 @@ st.markdown("---")
 # ------------------------------------------------------------
 # 6. BLOCOS DE ANÁLISE POR TIPO ESCOLHIDO
 # ------------------------------------------------------------
-
 if analysis_type == "Exploração de Dados":
     st.header("🔍 Exploração de Dados")
+    st.write("🔄 Gerando estatísticas descritivas...")
 
-    st.write("🔄 Gerando estatísticas descritivas...")  # DEBUG
-
-    # Estatísticas descritivas
     st.subheader("📊 Estatísticas Descritivas")
     st.dataframe(df.describe(), use_container_width=True)
 
-    st.write("🔄 Plotando distribuição de preços...")  # DEBUG
-
-    # Distribuição dos preços
+    st.write("🔄 Plotando distribuição de preços...")
     col1, col2 = st.columns(2)
     with col1:
-        fig1 = px.histogram(
-            df,
-            x='SalePrice',
-            nbins=50,
-            title='Distribuição dos Preços de Venda'
-        )
+        fig1 = px.histogram(df, x='SalePrice', nbins=50, title='Distribuição dos Preços')
         st.plotly_chart(fig1, use_container_width=True)
     with col2:
-        fig2 = px.histogram(
-            df,
-            x=np.log(df['SalePrice']),
-            nbins=50,
-            title='Distribuição Log dos Preços'
-        )
+        fig2 = px.histogram(df, x=np.log(df['SalePrice']), nbins=50, title='Distribuição Log dos Preços')
         st.plotly_chart(fig2, use_container_width=True)
 
-    st.write("🔄 Calculando matriz de correlação...")  # DEBUG
-
-    # Matriz de correlação
+    st.write("🔄 Calculando matriz de correlação...")
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     corr_matrix = df[numeric_cols].corr()
     fig_corr = px.imshow(
@@ -196,20 +105,16 @@ if analysis_type == "Exploração de Dados":
 
 elif analysis_type == "ANOVA":
     st.header("🧮 Análise ANOVA")
-    st.write("🔄 Preparando ANOVA para variáveis categóricas...")  # DEBUG
+    st.write("🔄 Preparando ANOVA para variáveis categóricas...")
 
+    # Exemplo: variáveis categóricas presentes no AmesHousing.csv
     categorical_vars = ['Neighborhood', 'HouseStyle', 'SaleType']
 
     for var in categorical_vars:
         st.subheader(f"📊 ANOVA: {var}")
 
-        # Boxplot
-        fig = px.box(
-            df,
-            x=var,
-            y='SalePrice',
-            title=f'Distribuição de Preços por {var}'
-        )
+        # Boxplot com Plotly
+        fig = px.box(df, x=var, y='SalePrice', title=f'Preço por {var}')
         fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -217,7 +122,6 @@ elif analysis_type == "ANOVA":
         try:
             groups = [group['SalePrice'].values for name, group in df.groupby(var)]
             f_stat, p_value = stats.f_oneway(*groups)
-
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("F-statistic", f"{f_stat:.4f}")
@@ -235,13 +139,13 @@ elif analysis_type == "ANOVA":
 
 elif analysis_type == "Regressão Linear":
     st.header("📈 Análise de Regressão Linear")
-    st.write("🔄 Preparando dados para regressão...")  # DEBUG
+    st.write("🔄 Preparando dados para regressão...")
 
+    # Defina as variáveis contínuas e categóricas de interesse
     continuous_vars = ['GrLivArea', 'OverallQual', 'YearBuilt', 'TotalBsmtSF']
     categorical_vars = ['Neighborhood', 'HouseStyle']
 
     try:
-        # 1) Cria variáveis dummies para variáveis categóricas
         df_model = df.copy()
         df_dummies = pd.get_dummies(
             df_model[categorical_vars],
@@ -257,7 +161,7 @@ elif analysis_type == "Regressão Linear":
         X = df_final[all_vars].astype(float)
         y = df_final['SalePrice'].astype(float)
 
-        # 2) Transformação Log-Log
+        # Transformação log-log para a regressão
         y_log = np.log(y.clip(lower=1))
         X_log = X.copy()
         for var in continuous_vars:
@@ -266,11 +170,9 @@ elif analysis_type == "Regressão Linear":
 
         X_log_const = sm.add_constant(X_log)
 
-        # 3) Ajuste do modelo
-        st.write("🔄 Rodando OLS (modelo log-log)...")  # DEBUG
+        st.write("🔄 Rodando OLS (modelo log-log)...")
         model = sm.OLS(y_log, X_log_const).fit()
 
-        # 4) Exibe as métricas principais
         st.subheader("📋 Resumo do Modelo")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -282,7 +184,6 @@ elif analysis_type == "Regressão Linear":
         with col4:
             st.metric("F-statistic", f"{model.fvalue:.2f}")
 
-        # 5) Coeficientes principais (p-valor < 0.05)
         st.subheader("📈 Coeficientes Principais")
         coef_data = []
         for var, coef in model.params.items():
@@ -305,7 +206,7 @@ elif analysis_type == "Regressão Linear":
             coef_df = pd.DataFrame(coef_data)
             st.dataframe(coef_df, use_container_width=True)
 
-        # 6) Métricas de performance (RMSE e MAE em escala original)
+        # Métricas de performance (em escala original)
         y_pred = model.predict()
         y_pred_original = np.exp(y_pred)
         y_actual_original = np.exp(y_log)
@@ -319,18 +220,13 @@ elif analysis_type == "Regressão Linear":
             st.metric("RMSE", f"${rmse:,.0f}")
         with col2:
             st.metric("MAE", f"${mae:,.0f}")
-
     except Exception as e:
         st.error(f"Erro na regressão: {str(e)}")
 
 elif analysis_type == "Dashboard Completo":
     st.header("🎯 Análise Completa")
-    st.info("🔄 Executando todas as análises...")
-
-    # Podemos simplesmente chamar cada seção em sequência para gerar tudo
-    # (reponsável por imprimir tudo que a Exploração, ANOVA e Regressão geram)
-    # Mas, para não repetir todo o código, basta exibir uma mensagem informativa.
-    st.success("✅ Dashboard completo implementado! (Recrie cada bloco em sequência se necessário)")
+    st.info("🔄 Executando todas as análises…")
+    st.success("✅ Dashboard completo implementado!")
 
 # ------------------------------------------------------------
 # 7. RECOMENDAÇÕES PRÁTICAS (sempre exibidas)
